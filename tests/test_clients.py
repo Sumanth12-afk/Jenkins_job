@@ -6,7 +6,7 @@ from unittest.mock import Mock
 import requests
 
 from src.clients.artifact_registry import GCPArtifactRegistryClient
-from src.clients.email_client import SendGridEmailClient
+from src.clients.email_client import SMTPEmailClient
 from src.clients.jenkins import JenkinsClient
 from src.core.models import ServiceConfig
 
@@ -26,17 +26,17 @@ def test_jenkins_client_posts_parameterized_build(monkeypatch):
     assert post.call_args.kwargs["params"]["SERVICE_NAME"] == "my-service"
 
 
-def test_email_client_posts_sendgrid_payload(monkeypatch):
-    response = requests.Response()
-    response.status_code = 202
-    post = Mock(return_value=response)
-    monkeypatch.setattr("src.clients.email_client.requests.post", post)
+def test_email_client_sends_smtp(monkeypatch):
+    import smtplib
+    mock_smtp = Mock()
+    mock_smtp.return_value.__enter__.return_value = mock_smtp
+    monkeypatch.setattr(smtplib, "SMTP", mock_smtp)
 
-    SendGridEmailClient("key", sender="bot@example.com").send("qa@example.com", "Subject", "<b>Body</b>")
+    client = SMTPEmailClient("smtp.host", 587, "user", "pass", "sender@example.com")
+    client.send("qa@example.com", "Subject", "Body")
 
-    payload = post.call_args.kwargs["json"]
-    assert payload["personalizations"][0]["to"][0]["email"] == "qa@example.com"
-    assert payload["subject"] == "Subject"
+    mock_smtp.assert_called_with("smtp.host", 587)
+    mock_smtp.send_message.assert_called_once()
 
 
 def test_artifact_registry_client_maps_versions_to_tags(monkeypatch, fixed_now):
