@@ -46,7 +46,12 @@ def test_artifact_registry_client_maps_versions_to_tags(monkeypatch, fixed_now):
         SimpleNamespace(
             name="projects/p/locations/us/repositories/r/packages/pkg/versions/sha256:abc",
             create_time=fixed_now,
-            related_tags=[SimpleNamespace(tag="v1.0.0")],
+        )
+    ]
+    fake_client.list_tags.return_value = [
+        SimpleNamespace(
+            name="projects/p/locations/us/repositories/r/packages/pkg/tags/v1.0.0",
+            version="projects/p/locations/us/repositories/r/packages/pkg/versions/sha256:abc",
         )
     ]
 

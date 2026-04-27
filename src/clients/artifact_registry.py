@@ -24,16 +24,19 @@ class GCPArtifactRegistryClient:
             f"{service.repository}/packages/{service.package}"
         )
         request = {"parent": package_path}
-        tags: list[ImageTag] = []
+        version_created_at: dict[str, object] = {}
         for version in self._client.list_versions(request=request):
-            digest = version.name.rsplit("/", 1)[-1]
             created_at = version.create_time
             if hasattr(created_at, "timestamp"):
                 created_at = created_at.replace(tzinfo=timezone.utc)
-            related_tags = list(getattr(version, "related_tags", []) or [])
-            if related_tags:
-                for tag in related_tags:
-                    tags.append(ImageTag(tag=tag.tag, created_at=created_at, digest=digest))
-            else:
-                tags.append(ImageTag(tag=digest, created_at=created_at, digest=digest))
+            version_created_at[version.name] = created_at
+
+        tags: list[ImageTag] = []
+        for tag in self._client.list_tags(request=request):
+            version_name = tag.version
+            digest = version_name.rsplit("/", 1)[-1] if version_name else None
+            created_at = version_created_at.get(version_name)
+            if created_at is None:
+                continue
+            tags.append(ImageTag(tag=tag.name.rsplit("/", 1)[-1], created_at=created_at, digest=digest))
         return tags
