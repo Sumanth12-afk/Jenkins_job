@@ -1,1 +1,1 @@
-"""External service clients."""
+# Initialize module

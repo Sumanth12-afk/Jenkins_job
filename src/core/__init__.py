@@ -1,1 +1,1 @@
-"""Core workflow orchestration."""
+# Initialize module
