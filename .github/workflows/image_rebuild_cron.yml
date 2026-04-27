@@ -40,8 +40,11 @@ jobs:
           pip install pytest
       - name: Run tests
         run: |
-          export PYTHONPATH="${GITHUB_WORKSPACE}:${PYTHONPATH}"
-          python -m pytest -q
+          pwd
+          ls -la
+          find . -maxdepth 3 -type d
+          python -c "import sys; print(sys.path)"
+          PYTHONPATH=$PWD python -m pytest -q
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
