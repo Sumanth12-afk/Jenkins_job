@@ -1,0 +1,6 @@
+# Testing policy: rebuild images older than 5 minutes.
+# Later production value can be restored by removing max_image_age_minutes
+# and setting max_image_age_days: 45.
+max_image_age_days: 45
+max_image_age_minutes: 5
+rebuild_tag_suffix: rebuild

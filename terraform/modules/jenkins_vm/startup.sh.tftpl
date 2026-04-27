@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+set -euxo pipefail
+
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update
+apt-get install -y ca-certificates curl gnupg fontconfig apt-transport-https
+
+install -m 0755 -d /etc/apt/keyrings
+
+curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$${VERSION_CODENAME}") stable" \
+  > /etc/apt/sources.list.d/docker.list
+
+curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key -o /etc/apt/keyrings/jenkins-keyring.asc
+echo "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" \
+  > /etc/apt/sources.list.d/jenkins.list
+
+curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg -o /etc/apt/keyrings/google-cloud.asc
+echo "deb [signed-by=/etc/apt/keyrings/google-cloud.asc] https://packages.cloud.google.com/apt cloud-sdk main" \
+  > /etc/apt/sources.list.d/google-cloud-sdk.list
+
+curl -fsSL https://packages.adoptium.net/artifactory/api/gpg/key/public -o /etc/apt/keyrings/adoptium.asc
+echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(. /etc/os-release && echo "$${VERSION_CODENAME}") main" \
+  > /etc/apt/sources.list.d/adoptium.list
+
+apt-get update
+apt-get install -y temurin-21-jre docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin google-cloud-cli jenkins
+
+usermod -aG docker jenkins
+systemctl enable docker
+systemctl start docker
+
+mkdir -p /var/lib/jenkins/.docker
+gcloud auth configure-docker ${region}-docker.pkg.dev --quiet || true
+cp -r /root/.docker/. /var/lib/jenkins/.docker/ || true
+chown -R jenkins:jenkins /var/lib/jenkins/.docker
+
+cat >/var/lib/jenkins/rebuild-env.sh <<'EOF'
+export GCP_PROJECT_ID="${project_id}"
+export ARTIFACT_REGISTRY_LOCATION="${region}"
+export ARTIFACT_REGISTRY_REPOSITORY="${artifact_registry_repo}"
+EOF
+chown jenkins:jenkins /var/lib/jenkins/rebuild-env.sh
+chmod 0644 /var/lib/jenkins/rebuild-env.sh
+
+systemctl enable jenkins
+systemctl restart jenkins

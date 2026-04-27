@@ -1,0 +1,85 @@
+pipeline {
+  agent any
+
+  parameters {
+    string(name: 'SERVICE_NAME', defaultValue: '', description: 'Microservice name')
+    string(name: 'CURRENT_IMAGE_TAG', defaultValue: '', description: 'Current stale image tag')
+    string(name: 'NEW_IMAGE_TAG', defaultValue: '', description: 'New rebuild image tag')
+    string(name: 'REBUILD_REASON', defaultValue: '', description: 'Reason scanner requested rebuild')
+    string(name: 'GCP_PROJECT_ID', defaultValue: '', description: 'GCP project ID')
+    string(name: 'ARTIFACT_REGISTRY_LOCATION', defaultValue: 'us-central1', description: 'Artifact Registry location')
+    string(name: 'ARTIFACT_REGISTRY_REPOSITORY', defaultValue: 'microservices', description: 'Artifact Registry repository')
+    string(name: 'IMAGE_PACKAGE', defaultValue: '', description: 'Artifact Registry image package')
+    string(name: 'GIT_REPO_URL', defaultValue: '', description: 'Service source repository')
+    string(name: 'GIT_BRANCH', defaultValue: 'main', description: 'Service source branch')
+    string(name: 'DOCKERFILE_PATH', defaultValue: 'Dockerfile', description: 'Dockerfile path')
+    string(name: 'BUILD_CONTEXT', defaultValue: '.', description: 'Docker build context')
+    string(name: 'WEBHOOK_URL', defaultValue: '', description: 'Optional webhook receiver URL')
+    string(name: 'IDEMPOTENCY_KEY', defaultValue: '', description: 'Scanner idempotency key')
+  }
+
+  environment {
+    IMAGE_URI = "${params.ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev/${params.GCP_PROJECT_ID}/${params.ARTIFACT_REGISTRY_REPOSITORY}/${params.IMAGE_PACKAGE}:${params.NEW_IMAGE_TAG}"
+  }
+
+  stages {
+    stage('Validate Parameters') {
+      steps {
+        sh '''
+          test -n "$SERVICE_NAME"
+          test -n "$NEW_IMAGE_TAG"
+          test -n "$GCP_PROJECT_ID"
+          test -n "$IMAGE_PACKAGE"
+          test -n "$GIT_REPO_URL"
+        '''
+      }
+    }
+
+    stage('Checkout') {
+      steps {
+        git branch: params.GIT_BRANCH, url: params.GIT_REPO_URL
+      }
+    }
+
+    stage('Build') {
+      steps {
+        sh '''
+          gcloud auth configure-docker "${ARTIFACT_REGISTRY_LOCATION}-docker.pkg.dev" --quiet
+          docker build --pull \
+            -f "$DOCKERFILE_PATH" \
+            -t "$IMAGE_URI" \
+            "$BUILD_CONTEXT"
+        '''
+      }
+    }
+
+    stage('Push') {
+      steps {
+        sh 'docker push "$IMAGE_URI"'
+      }
+    }
+  }
+
+  post {
+    always {
+      script {
+        def result = currentBuild.currentResult ?: 'UNKNOWN'
+        sh """
+          if [ -n "\$WEBHOOK_URL" ]; then
+            curl -sS -X POST "\$WEBHOOK_URL" \
+              -H 'Content-Type: application/json' \
+              -d "{
+                \\"service_name\\":\\"\$SERVICE_NAME\\",
+                \\"current_tag\\":\\"\$CURRENT_IMAGE_TAG\\",
+                \\"new_tag\\":\\"\$NEW_IMAGE_TAG\\",
+                \\"status\\":\\"${result}\\",
+                \\"idempotency_key\\":\\"\$IDEMPOTENCY_KEY\\",
+                \\"jenkins_job\\":\\"\$JOB_NAME\\",
+                \\"jenkins_build_url\\":\\"\$BUILD_URL\\"
+              }" || true
+          fi
+        """
+      }
+    }
+  }
+}

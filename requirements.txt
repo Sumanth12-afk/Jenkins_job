@@ -1,0 +1,6 @@
+functions-framework>=3.5.0
+google-cloud-artifact-registry>=1.11.0
+google-cloud-firestore>=2.16.0
+PyYAML>=6.0.1
+requests>=2.31.0
+pytest>=8.0.0

@@ -1,0 +1,16 @@
+project_id     = "your-gcp-project-id"
+project_number = "123456789012"
+region         = "us-central1"
+zone           = "us-central1-a"
+
+github_repo = "your-org/your-repo"
+
+artifact_registry_repo = "microservices"
+firestore_location     = "nam5"
+
+jenkins_vm_name       = "jenkins-rebuild-test"
+jenkins_machine_type  = "e2-medium"
+
+jenkins_allowed_source_ranges = [
+  "YOUR_PUBLIC_IP/32"
+]
