@@ -5,6 +5,10 @@ import logging
 import os
 from datetime import datetime, timezone
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from src.clients.artifact_registry import ArtifactRegistryClientProtocol, GCPArtifactRegistryClient
 from src.clients.jenkins import JenkinsClient, JenkinsClientProtocol
 from src.clients.state_store import FirestoreStateStore, LocalStateStore, StateStoreProtocol
