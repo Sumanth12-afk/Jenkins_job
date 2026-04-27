@@ -15,33 +15,31 @@ class EmailClientProtocol(Protocol):
         ...
 
 
-class SendGridEmailClient:
-    def __init__(self, api_key: str, sender: str = "image-rebuild-bot@example.com"):
-        self.api_key = api_key
+import smtplib
+from email.message import EmailMessage
+
+class SMTPEmailClient:
+    def __init__(self, smtp_server: str, smtp_port: int, username: str, password: str, sender: str):
+        self.smtp_server = smtp_server
+        self.smtp_port = smtp_port
+        self.username = username
+        self.password = password
         self.sender = sender
 
     def send(self, recipient: str, subject: str, html_body: str) -> None:
-        payload = {
-            "personalizations": [{"to": [{"email": recipient}]}],
-            "from": {"email": self.sender},
-            "subject": subject,
-            "content": [{"type": "text/html", "value": html_body}],
-        }
+        msg = EmailMessage()
+        msg["Subject"] = subject
+        msg["From"] = self.sender
+        msg["To"] = recipient
+        msg.set_content("Please view this email in an HTML-compatible client.")
+        msg.add_alternative(html_body, subtype="html")
 
-        def operation() -> requests.Response:
-            response = requests.post(
-                "https://api.sendgrid.com/v3/mail/send",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                },
-                json=payload,
-                timeout=15,
-            )
-            if response.status_code >= 500:
-                response.raise_for_status()
-            return response
+        def operation() -> None:
+            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+                server.starttls()
+                if self.username and self.password:
+                    server.login(self.username, self.password)
+                server.send_message(msg)
 
-        response = retry_call(operation, logger=LOGGER, retry_exceptions=(requests.RequestException,))
-        if response.status_code not in (200, 202):
-            response.raise_for_status()
+        retry_call(operation, logger=LOGGER, retry_exceptions=(smtplib.SMTPException,))
+

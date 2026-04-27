@@ -5,7 +5,7 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
-from src.clients.email_client import SendGridEmailClient
+from src.clients.email_client import SMTPEmailClient
 from src.clients.state_store import BuildRecord, FirestoreStateStore, LocalStateStore
 from src.notifications.reporter import build_rebuild_report
 
@@ -56,11 +56,17 @@ def jenkins_webhook_receiver(request: Any):
     store.upsert_build(record)
 
     qa_email = os.getenv("QA_TEAM_EMAIL")
-    email_api_key = os.getenv("EMAIL_API_KEY")
-    if qa_email and email_api_key:
+    smtp_server = os.getenv("SMTP_SERVER")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = os.getenv("SMTP_USER")
+    smtp_pass = os.getenv("SMTP_PASSWORD")
+    sender_email = os.getenv("SENDER_EMAIL", "automation@example.com")
+
+    if qa_email and smtp_server:
         subject, body = build_rebuild_report([record])
-        SendGridEmailClient(email_api_key).send(qa_email, subject, body)
+        client = SMTPEmailClient(smtp_server, smtp_port, smtp_user or "", smtp_pass or "", sender_email)
+        client.send(qa_email, subject, body)
     else:
-        LOGGER.warning("Skipping email notification because QA_TEAM_EMAIL or EMAIL_API_KEY is missing")
+        LOGGER.warning("Skipping email notification because QA_TEAM_EMAIL or SMTP_SERVER is missing")
 
     return {"ok": True, "record": record.to_dict()}, 200
