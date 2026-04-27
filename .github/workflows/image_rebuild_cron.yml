@@ -18,7 +18,7 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     env:
-      PYTHONPATH: .
+      PYTHONPATH: ${{ github.workspace }}
       GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
       JENKINS_URL: ${{ secrets.JENKINS_URL }}
       JENKINS_USER: ${{ secrets.JENKINS_USER }}
