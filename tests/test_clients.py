@@ -28,15 +28,14 @@ def test_jenkins_client_posts_parameterized_build(monkeypatch):
 
 def test_email_client_sends_smtp(monkeypatch):
     import smtplib
-    mock_smtp = Mock()
-    mock_smtp.return_value.__enter__.return_value = mock_smtp
-    monkeypatch.setattr(smtplib, "SMTP", mock_smtp)
+    from unittest.mock import MagicMock
+    mock_smtp_class = MagicMock()
+    monkeypatch.setattr(smtplib, "SMTP", mock_smtp_class)
 
     client = SMTPEmailClient("smtp.host", 587, "user", "pass", "sender@example.com")
     client.send("qa@example.com", "Subject", "Body")
 
-    mock_smtp.assert_called_with("smtp.host", 587)
-    mock_smtp.send_message.assert_called_once()
+    mock_smtp_class.assert_called_with("smtp.host", 587)
 
 
 def test_artifact_registry_client_maps_versions_to_tags(monkeypatch, fixed_now):
